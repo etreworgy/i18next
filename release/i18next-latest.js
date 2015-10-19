@@ -387,12 +387,20 @@
         return target;
     }
     
-    function _deepExtend(target, source) {
+    function _deepExtend(target, source, overwrite) {
         for (var prop in source)
-            if (prop in target)
-                _deepExtend(target[prop], source[prop]);
-            else
+            if (prop in target) {
+                // If we reached a leaf string in target or source then replace with source or skip depending on the 'overwrite' switch
+                if (typeof target[prop] === 'string' || target[prop] instanceof String || typeof source[prop] === 'string' || source[prop] instanceof String) {
+                    if (overwrite) {
+                        target[prop] = source[prop];
+                    }
+                } else {
+                    _deepExtend(target[prop], source[prop], overwrite);
+                }
+            } else {
                 target[prop] = source[prop];
+            }
         return target;
     }
     
@@ -1009,7 +1017,7 @@
         return init(cb);
     }
     
-    function addResourceBundle(lng, ns, resources, deep) {
+    function addResourceBundle(lng, ns, resources, deep, overwrite) {
         if (typeof ns !== 'string') {
             resources = ns;
             ns = o.ns.defaultNs;
@@ -1021,7 +1029,7 @@
         resStore[lng][ns] = resStore[lng][ns] || {};
     
         if (deep) {
-            f.deepExtend(resStore[lng][ns], resources);
+            f.deepExtend(resStore[lng][ns], resources, overwrite);
         } else {
             f.extend(resStore[lng][ns], resources);
         }
@@ -1292,7 +1300,13 @@
                 parse(target, key, options);
             }
     
-            if (o.useDataAttrOptions === true) ele.data("i18n-options", options);
+            if (o.useDataAttrOptions === true) {
+              var clone = $.extend({lng: 'non', lngs: [], _origLng: 'non'}, options);
+              delete clone.lng;
+              delete clone.lngs;
+              delete clone._origLng;
+              ele.data("i18n-options", clone);
+            }
         }
     
         // fn
@@ -1303,7 +1317,7 @@
     
                 // localize childs
                 var elements =  $(this).find('[' + o.selectorAttr + ']');
-                elements.each(function() { 
+                elements.each(function() {
                     localize($(this), options);
                 });
             });
